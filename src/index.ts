@@ -96,6 +96,7 @@ export const flame = defineInterlude({
   },
   icon: 'flame',
   fps: FPS,
+  preview: { poster: 'docs/flame.jpg', video: 'docs/flame.webm' },
   options: t.object({
     revealMs: t.duration({
       default: 20_000,
@@ -208,6 +209,7 @@ export const julia = defineInterlude({
   },
   icon: 'infinity',
   fps: FPS,
+  preview: { poster: 'docs/julia.jpg', video: 'docs/julia.webm' },
   options: t.object({
     loopMs: t.duration({
       default: 30_000,
@@ -258,6 +260,7 @@ export const ferns = defineInterlude({
   },
   icon: 'leaf',
   fps: FPS,
+  preview: { poster: 'docs/ferns.jpg', video: 'docs/ferns.webm' },
   options: t.object({
     growMs: t.duration({
       default: 20_000,
@@ -310,6 +313,7 @@ export const mandelbrot = defineInterlude({
   },
   icon: 'zoom-in',
   fps: FPS,
+  preview: { poster: 'docs/mandelbrot.jpg', video: 'docs/mandelbrot.webm' },
   options: t.object({
     zoomMs: t.duration({
       default: 40_000,
@@ -361,6 +365,7 @@ export const coral = defineInterlude({
   },
   icon: 'sprout',
   fps: FPS,
+  preview: { poster: 'docs/coral.jpg', video: 'docs/coral.webm' },
   options: t.object({
     growMs: t.duration({
       default: 25_000,
@@ -408,7 +413,7 @@ export const coral = defineInterlude({
 export default definePlugin({
   id: 'fractals',
   name: { en: 'Fractals', es: 'Fractales', de: 'Fraktale', 'zh-Hans': '分形', 'zh-Hant': '碎形' },
-  version: '0.2.0',
+  version: '0.2.1',
   description: {
     en: 'Generative fractal interludes in your theme’s colours: a fractal flame that develops like a photo, a morphing Julia set, a dive into the Mandelbrot set, a meadow of Barnsley ferns and growing coral.',
     es: 'Interludios de fractales generativos con los colores de tu tema: una llama fractal que se revela como una foto, un conjunto de Julia que se transforma, una inmersión en el conjunto de Mandelbrot, un prado de helechos de Barnsley y coral que crece.',
@@ -423,5 +428,7 @@ export default definePlugin({
   sdk: '^0.2.0',
   languages: ['en', 'es', 'de', 'zh-Hant', 'zh-Hans'],
   permissions: {},
+  icon: 'sparkles',
+  category: 'scene',
   interludes: [flame, julia, mandelbrot, ferns, coral],
 });

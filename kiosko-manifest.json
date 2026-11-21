@@ -9,7 +9,7 @@
     "zh-Hans": "分形",
     "zh-Hant": "碎形"
   },
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": {
     "en": "Generative fractal interludes in your theme’s colours: a fractal flame that develops like a photo, a morphing Julia set, a dive into the Mandelbrot set, a meadow of Barnsley ferns and growing coral.",
     "es": "Interludios de fractales generativos con los colores de tu tema: una llama fractal que se revela como una foto, un conjunto de Julia que se transforma, una inmersión en el conjunto de Mandelbrot, un prado de helechos de Barnsley y coral que crece.",
@@ -21,6 +21,7 @@
   "license": "MIT",
   "homepage": "https://github.com/kiosko-lcd/kiosko-plugin-fractals#readme",
   "repository": "https://github.com/kiosko-lcd/kiosko-plugin-fractals",
+  "icon": "sparkles",
   "sdk": "^0.2.0",
   "platforms": [
     "linux",
@@ -34,7 +35,9 @@
     "zh-Hant",
     "zh-Hans"
   ],
-  "categories": [],
+  "categories": [
+    "scene"
+  ],
   "tags": [],
   "permissions": {},
   "riskyOptions": [],
@@ -60,7 +63,11 @@
         "zh-Hant": "一團碎形火焰（如 Electric Sheep），像照片顯影一樣浮現：從淡淡的微塵到發光的細絲，使用主題的顏色。每次都是不同的作品。"
       },
       "icon": "flame",
-      "fps": 15
+      "fps": 15,
+      "preview": {
+        "poster": "docs/flame.jpg",
+        "video": "docs/flame.webm"
+      }
     },
     {
       "type": "fractals/julia",
@@ -79,7 +86,11 @@
         "zh-Hant": "朱利亞集隨參數沿曼德博集合的邊緣移動而扭轉變形，完美循環，使用主題的顏色。"
       },
       "icon": "infinity",
-      "fps": 15
+      "fps": 15,
+      "preview": {
+        "poster": "docs/julia.jpg",
+        "video": "docs/julia.webm"
+      }
     },
     {
       "type": "fractals/mandelbrot",
@@ -98,7 +109,11 @@
         "zh-Hant": "緩緩放大曼德博集合，駛向海馬谷或其邊緣的其他著名位置，邊前進邊旋轉，使用主題的顏色。"
       },
       "icon": "zoom-in",
-      "fps": 15
+      "fps": 15,
+      "preview": {
+        "poster": "docs/mandelbrot.jpg",
+        "video": "docs/mandelbrot.webm"
+      }
     },
     {
       "type": "fractals/ferns",
@@ -117,7 +132,11 @@
         "zh-Hant": "一排巴恩斯利蕨沿著長條屏生長，每株高度、傾斜和捲曲各不相同，用主題顏色逐點繪出。"
       },
       "icon": "leaf",
-      "fps": 15
+      "fps": 15,
+      "preview": {
+        "poster": "docs/ferns.jpg",
+        "video": "docs/ferns.webm"
+      }
     },
     {
       "type": "fractals/coral",
@@ -136,8 +155,16 @@
         "zh-Hant": "珊瑚從長條屏底部向上分枝，或霜花從頂部垂下，逐粒生長（擴散限制凝聚），使用主題的顏色。"
       },
       "icon": "sprout",
-      "fps": 15
+      "fps": 15,
+      "preview": {
+        "poster": "docs/coral.jpg",
+        "video": "docs/coral.webm"
+      }
     }
   ],
-  "templates": []
+  "templates": [],
+  "support": {
+    "issues": "https://github.com/kiosko-lcd/kiosko-plugin-fractals/issues",
+    "docs": "https://github.com/kiosko-lcd/kiosko-plugin-fractals#readme"
+  }
 }
