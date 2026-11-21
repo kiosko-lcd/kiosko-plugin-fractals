@@ -1,0 +1,86 @@
+{
+  "manifest": 1,
+  "id": "fractals",
+  "package": "kiosko-plugin-fractals",
+  "name": {
+    "en": "Fractals",
+    "es": "Fractales",
+    "de": "Fraktale",
+    "zh-Hans": "分形",
+    "zh-Hant": "碎形"
+  },
+  "version": "0.1.0",
+  "description": {
+    "en": "Generative fractal interludes: a fractal flame that develops like a photo, and a Julia set that morphs, in your theme’s colours.",
+    "es": "Interludios de fractales generativos: una llama fractal que se revela como una foto y un conjunto de Julia que se transforma, con los colores de tu tema.",
+    "de": "Generative Fraktal-Zwischenspiele: eine fraktale Flamme, die sich wie ein Foto entwickelt, und eine sich verwandelnde Julia-Menge, in den Farben deines Themas.",
+    "zh-Hans": "生成式分形插曲：像照片显影一样浮现的分形火焰，以及不断变幻的朱利亚集，使用你的主题颜色。",
+    "zh-Hant": "生成式碎形插曲：像照片顯影一樣浮現的碎形火焰，以及不斷變幻的朱利亞集，使用你的主題顏色。"
+  },
+  "author": "Loksly",
+  "license": "MIT",
+  "homepage": "https://github.com/kiosko-lcd/kiosko-plugin-fractals#readme",
+  "repository": "https://github.com/kiosko-lcd/kiosko-plugin-fractals",
+  "sdk": "^0.2.0",
+  "platforms": [
+    "linux",
+    "darwin",
+    "win32"
+  ],
+  "languages": [
+    "en",
+    "es",
+    "de",
+    "zh-Hant",
+    "zh-Hans"
+  ],
+  "categories": [],
+  "tags": [],
+  "permissions": {},
+  "riskyOptions": [],
+  "requires": [],
+  "optional": [],
+  "widgets": [],
+  "sources": [],
+  "interludes": [
+    {
+      "type": "fractals/flame",
+      "name": {
+        "en": "Fractal flame",
+        "es": "Llama fractal",
+        "de": "Fraktale Flamme",
+        "zh-Hans": "分形火焰",
+        "zh-Hant": "碎形火焰"
+      },
+      "description": {
+        "en": "A fractal flame, as in Electric Sheep, that develops like a photo: from faint dust to glowing filaments, in the theme’s colours. A different piece each time.",
+        "es": "Una llama fractal, como las de Electric Sheep, que se revela como una foto: de un polvo tenue a filamentos luminosos, con los colores del tema. Cada vez una obra distinta.",
+        "de": "Eine fraktale Flamme wie bei Electric Sheep, die sich wie ein Foto entwickelt: von feinem Staub zu leuchtenden Fäden, in den Farben des Themas. Jedes Mal ein anderes Werk.",
+        "zh-Hans": "一团分形火焰（如 Electric Sheep），像照片显影一样浮现：从淡淡的微尘到发光的细丝，使用主题的颜色。每次都是不同的作品。",
+        "zh-Hant": "一團碎形火焰（如 Electric Sheep），像照片顯影一樣浮現：從淡淡的微塵到發光的細絲，使用主題的顏色。每次都是不同的作品。"
+      },
+      "icon": "flame",
+      "fps": 15
+    },
+    {
+      "type": "fractals/julia",
+      "name": {
+        "en": "Morphing Julia",
+        "es": "Julia que se transforma",
+        "de": "Verwandelnde Julia-Menge",
+        "zh-Hans": "变幻的朱利亚集",
+        "zh-Hant": "變幻的朱利亞集"
+      },
+      "description": {
+        "en": "A Julia set that twists and turns as its parameter walks along the edge of the Mandelbrot set, in a perfect loop, in the theme’s colours.",
+        "es": "Un conjunto de Julia que se retuerce mientras su parámetro recorre el borde del conjunto de Mandelbrot, en un bucle perfecto, con los colores del tema.",
+        "de": "Eine Julia-Menge, die sich windet, während ihr Parameter den Rand der Mandelbrot-Menge entlangwandert, in einer perfekten Schleife, in den Farben des Themas.",
+        "zh-Hans": "朱利亚集随参数沿曼德博集合的边缘移动而扭转变形，完美循环，使用主题的颜色。",
+        "zh-Hant": "朱利亞集隨參數沿曼德博集合的邊緣移動而扭轉變形，完美循環，使用主題的顏色。"
+      },
+      "icon": "infinity",
+      "fps": 15
+    }
+  ],
+  "templates": []
+}
