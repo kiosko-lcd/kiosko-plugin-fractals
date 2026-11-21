@@ -2,13 +2,16 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createCanvas, loadImage } from '@napi-rs/canvas';
 import { createBaseContext, themeById, validate, THEMES } from '@kiosko/sdk';
-import { flame, julia } from './index.ts';
+import { coral, ferns, flame, julia, mandelbrot } from './index.ts';
+import { Coral } from './coral.ts';
+import { plantFerns } from './ferns.ts';
+import { Mandelbrot, TARGETS } from './mandelbrot.ts';
 import { chooseGenome, Flame } from './flame.ts';
 import { Julia } from './julia.ts';
 import { parseHex, themePalette } from './palette.ts';
 import { hashSeed, rng } from './rng.ts';
 
-type Def = typeof flame | typeof julia;
+type Def = typeof flame | typeof julia | typeof ferns | typeof mandelbrot | typeof coral;
 
 async function play(def: Def, { width = 640, height = 154, seed = 1, theme = 'midnight', frames = 30, options = {} as Record<string, unknown> } = {}) {
   const logs: string[] = [];
@@ -113,4 +116,78 @@ test('the Julia set paints in every theme, neither empty nor burnt out, within i
   const { times } = await play(julia, { width: 1920, height: 462, frames: 20 });
   const steady = times.slice(3).sort((a, b) => a - b);
   assert.ok(steady[Math.floor(steady.length / 2)]! < 60, `median ${steady[Math.floor(steady.length / 2)]!.toFixed(1)} ms`);
+});
+
+test('the ferns stand along the whole bar, a different row each slot', () => {
+  const a = plantFerns(rng(1), 1920, 462);
+  assert.deepEqual(a, plantFerns(rng(1), 1920, 462));
+  assert.notDeepEqual(a, plantFerns(rng(2), 1920, 462));
+  assert.ok(a.length >= 5, `${a.length} ferns`);
+  const xs = a.map((f) => f.x);
+  assert.ok(Math.min(...xs) < 1920 * 0.15 && Math.max(...xs) > 1920 * 0.85, 'from one end to the other');
+  for (const f of a) assert.ok(f.size > 462 * 0.7 && f.size < 462 * 1.1);
+});
+
+test('the Mandelbrot dive: the right counts, the right depth, and what it carries over matches what it computes', () => {
+  assert.equal(Mandelbrot.escape(0, 0, 100), -1);
+  assert.equal(Mandelbrot.escape(-1, 0, 100), -1);
+  assert.equal(Mandelbrot.escape(-0.122, 0.745, 100), -1, 'inside the period-3 bulb');
+  const out = Mandelbrot.escape(1, 1, 100);
+  assert.ok(out > 0 && out < 4, `escapes at once (${out})`);
+  const m = new Mandelbrot(320, 77, themePalette(themeById('midnight'), rng(1)), rng(4), { createCanvas, loadImage } as never, 1);
+  assert.ok(TARGETS.includes(m.target));
+  const start = m.view(0), end = m.view(1);
+  assert.ok(start.span > 3 && end.span < 1e-5);
+  assert.ok(Math.abs(end.cx - m.target.x) < 1e-12 && Math.abs(end.cy - m.target.y) < 1e-12, 'it ends at the target');
+  // Well clear of double precision: a pixel is millions of ulps of the coordinates.
+  assert.ok(end.span / 1920 > Math.abs(m.target.x) * 2 ** -52 * 1e5);
+  // With all the time it wants, every frame is computed whole: the same as fresh.
+  for (let i = 0; i <= 10; i++) m.update(i / 40, 1e9);
+  const fresh = new Mandelbrot(320, 77, themePalette(themeById('midnight'), rng(1)), rng(4), { createCanvas, loadImage } as never, 1);
+  fresh.update(10 / 40, 1e9);
+  assert.deepEqual(m.values, fresh.values);
+});
+
+test('the coral grows from its roots, every particle touching the one it stuck to, the same for the same slot', () => {
+  const grow = () => {
+    const c = new Coral(640, 154, themePalette(themeById('paper'), rng(1)), rng(hashSeed(3, 'coral')), { createCanvas, loadImage } as never);
+    c.grow(800, 1e9);
+    return c;
+  };
+  const a = grow(), b = grow();
+  assert.equal(a.count, 800);
+  const pos = (c: Coral) => JSON.stringify([(c as never as { xs: Int16Array }).xs, (c as never as { ys: Int16Array }).ys]);
+  assert.equal(pos(a), pos(b));
+  const { xs, ys, parent } = a as never as { xs: Int16Array; ys: Int16Array; parent: Int32Array };
+  for (let i = 0; i < a.count; i++) {
+    const p = parent[i]!;
+    if (p < 0) { assert.equal(ys[i], 0, 'roots on the edge'); continue; }
+    assert.ok(Math.abs(xs[i]! - xs[p]!) <= 1 && Math.abs(ys[i]! - ys[p]!) <= 1, `particle ${i} touches its parent`);
+  }
+});
+
+test('the new interludes paint in every theme, neither empty nor washed out', async () => {
+  for (const [def, options] of [[ferns, { growMs: 1500, cpu: 10 }], [mandelbrot, { zoomMs: 4000, cpu: 20 }], [coral, { growMs: 1500, cpu: 20 }]] as const) {
+    for (const theme of THEMES) {
+      const { data } = await play(def, { theme: theme.id, frames: 30, options });
+      const c = coverage(data, theme.colors.bg);
+      // The dive fills the whole bar; the others leave background around them.
+      const most = def === mandelbrot ? 1 : 0.95;
+      assert.ok(c.lit > 0.02 && c.lit <= most && c.clipped < 0.3, `${def.id} in ${theme.id}: lit ${c.lit.toFixed(3)}, clipped ${c.clipped.toFixed(3)}`);
+      const colours = new Set<number>();
+      for (let p = 0; p < data.length; p += 4 * 7) colours.add((data[p]! << 16) | (data[p + 1]! << 8) | data[p + 2]!);
+      assert.ok(colours.size > 40, `${def.id} in ${theme.id}: a picture, not a flat fill (${colours.size} colours)`);
+    }
+  }
+});
+
+test('the new interludes get ready quickly and keep their frames within budget at panel size', async () => {
+  for (const def of [ferns, mandelbrot, coral]) {
+    const t0 = performance.now();
+    const { times } = await play(def, { width: 1920, height: 462, frames: 20 });
+    const steady = times.slice(2).sort((a, b) => a - b);
+    const median = steady[Math.floor(steady.length / 2)]!;
+    assert.ok(median < 70, `${def.id}: median ${median.toFixed(1)} ms`);
+    assert.ok(performance.now() - t0 < 20 * 250, `${def.id}: the whole run`);
+  }
 });
