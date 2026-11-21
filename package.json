@@ -4,7 +4,7 @@
   "description": "Generative fractal interludes for Kiosko in your theme’s colours: a fractal flame that develops like a photo, a morphing Julia set, a Mandelbrot dive, a meadow of Barnsley ferns and growing coral.",
   "type": "module",
   "license": "MIT",
-  "author": "Loksly",
+  "author": "Loksly <info@kioskolcd.dev> (https://kioskolcd.dev)",
   "keywords": [
     "kiosko",
     "kiosko-plugin",
