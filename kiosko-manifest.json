@@ -9,13 +9,13 @@
     "zh-Hans": "分形",
     "zh-Hant": "碎形"
   },
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": {
     "en": "Generative fractal interludes in your theme’s colours: a fractal flame that develops like a photo, a morphing Julia set, a dive into the Mandelbrot set, a meadow of Barnsley ferns and growing coral.",
     "es": "Interludios de fractales generativos con los colores de tu tema: una llama fractal que se revela como una foto, un conjunto de Julia que se transforma, una inmersión en el conjunto de Mandelbrot, un prado de helechos de Barnsley y coral que crece.",
     "de": "Generative Fraktal-Zwischenspiele in den Farben deines Themas: eine fraktale Flamme, die sich wie ein Foto entwickelt, eine sich verwandelnde Julia-Menge, ein Tauchgang in die Mandelbrot-Menge, eine Wiese aus Barnsley-Farnen und wachsende Korallen.",
-    "zh-Hans": "使用你的主题颜色的生成式分形插曲：像照片显影一样浮现的分形火焰、变幻的朱利亚集、深入曼德博集合的旅程、巴恩斯利蕨草地和生长的珊瑚。",
-    "zh-Hant": "使用你的主題顏色的生成式碎形插曲：像照片顯影一樣浮現的碎形火焰、變幻的朱利亞集、深入曼德博集合的旅程、巴恩斯利蕨草地和生長的珊瑚。"
+    "zh-Hans": "使用你的主题颜色的生成式分形过场动画：像照片显影一样浮现的分形火焰、变幻的朱利亚集、深入曼德博集合的旅程、巴恩斯利蕨草地和生长的珊瑚。",
+    "zh-Hant": "使用你的主題顏色的生成式碎形過場動畫：像照片顯影一樣浮現的碎形火焰、變幻的朱利亞集、深入曼德博集合的旅程、巴恩斯利蕨草地和生長的珊瑚。"
   },
   "author": "Loksly",
   "license": "MIT",
@@ -129,7 +129,7 @@
         "es": "Una hilera de helechos de Barnsley que crecen a lo largo de la barra, cada uno con su altura, inclinación y rizo, dibujados punto a punto con los colores del tema.",
         "de": "Eine Reihe Barnsley-Farne, die entlang der Leiste wachsen, jeder mit eigener Höhe, Neigung und Krümmung, Punkt für Punkt in den Farben des Themas gezeichnet.",
         "zh-Hans": "一排巴恩斯利蕨沿着长条屏生长，每株高度、倾斜和卷曲各不相同，用主题颜色逐点绘出。",
-        "zh-Hant": "一排巴恩斯利蕨沿著長條屏生長，每株高度、傾斜和捲曲各不相同，用主題顏色逐點繪出。"
+        "zh-Hant": "一排巴恩斯利蕨沿著長條螢幕生長，每株高度、傾斜和捲曲各不相同，用主題顏色逐點繪出。"
       },
       "icon": "leaf",
       "fps": 15,
@@ -152,7 +152,7 @@
         "es": "Coral que se ramifica desde el borde inferior de la barra, o escarcha que cuelga del superior, creciendo partícula a partícula (agregación limitada por difusión), con los colores del tema.",
         "de": "Koralle, die vom unteren Rand der Leiste aufwärts verzweigt, oder Raureif, der vom oberen herabhängt, Teilchen für Teilchen gewachsen (diffusionsbegrenzte Aggregation), in den Farben des Themas.",
         "zh-Hans": "珊瑚从长条屏底部向上分枝，或霜花从顶部垂下，逐粒生长（扩散限制凝聚），使用主题的颜色。",
-        "zh-Hant": "珊瑚從長條屏底部向上分枝，或霜花從頂部垂下，逐粒生長（擴散限制凝聚），使用主題的顏色。"
+        "zh-Hant": "珊瑚從長條螢幕底部向上分枝，或霜花從頂部垂下，逐粒生長（擴散限制凝聚），使用主題的顏色。"
       },
       "icon": "sprout",
       "fps": 15,
