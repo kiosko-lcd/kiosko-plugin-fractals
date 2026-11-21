@@ -11,6 +11,12 @@ paints a different piece; the same slot always paints the same one.
 A plugin for [Kiosko](https://github.com/kiosko-lcd/kiosko), the widget mosaic
 for small USB LCD panels. **Optional:** Kiosko doesn't install it.
 
+![A fractal flame on a 1920×462 panel](docs/flame.jpg)
+
+The pictures in `docs/` (a still and a few seconds of video of each
+interlude, for the plugin store) were painted by this plugin itself, in the
+default theme.
+
 ## Install
 
 ```sh
@@ -87,12 +93,16 @@ different selection and order for each slot.
 
 ### Fractal flame — `fractals/flame`
 
+![A fractal flame, developed, on a 1920×462 panel](docs/flame.jpg)
+
 | Option | Type | Default | |
 |---|---|---|---|
 | `revealMs` | duration | `20000` | How long it takes to come up fully. Then it keeps sharpening and its colours drift slowly until the interlude ends. |
 | `cpu` | integer, % (advanced) | `40` | How much of each frame's time goes to computing it. Lowers by itself when frames come late. |
 
 ### Morphing Julia — `fractals/julia`
+
+![A Julia set in the default theme’s colours](docs/julia.jpg)
 
 | Option | Type | Default | |
 |---|---|---|---|
@@ -101,6 +111,8 @@ different selection and order for each slot.
 
 ### Mandelbrot dive — `fractals/mandelbrot`
 
+![Deep in the Mandelbrot set, on the way to a double spiral](docs/mandelbrot.jpg)
+
 | Option | Type | Default | |
 |---|---|---|---|
 | `zoomMs` | duration | `40000` | How long it takes to go from the whole set to the deepest point (about a million times closer). Then it stays there, its colours drifting. |
@@ -108,12 +120,16 @@ different selection and order for each slot.
 
 ### Fern meadow — `fractals/ferns`
 
+![A meadow of Barnsley ferns along the bar](docs/ferns.jpg)
+
 | Option | Type | Default | |
 |---|---|---|---|
 | `growMs` | duration | `20000` | How long the ferns take to grow to their full height. Then they keep filling in until the interlude ends. |
 | `cpu` | integer, % (advanced) | `40` | How much of each frame's time goes to computing it. |
 
 ### Growing coral — `fractals/coral`
+
+![Coral grown particle by particle](docs/coral.jpg)
 
 | Option | Type | Default | |
 |---|---|---|---|
