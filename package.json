@@ -1,7 +1,7 @@
 {
   "name": "kiosko-plugin-fractals",
-  "version": "0.1.0",
-  "description": "Generative fractal interludes for Kiosko: a fractal flame that develops like a photo, and a Julia set that morphs, in your theme’s colours.",
+  "version": "0.2.0",
+  "description": "Generative fractal interludes for Kiosko in your theme’s colours: a fractal flame that develops like a photo, a morphing Julia set, a Mandelbrot dive, a meadow of Barnsley ferns and growing coral.",
   "type": "module",
   "license": "MIT",
   "author": "Loksly",
@@ -13,7 +13,10 @@
     "fractal-flame",
     "julia",
     "generative",
-    "interlude"
+    "interlude",
+    "mandelbrot",
+    "barnsley-fern",
+    "dla"
   ],
   "homepage": "https://github.com/kiosko-lcd/kiosko-plugin-fractals#readme",
   "repository": {

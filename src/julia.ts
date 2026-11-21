@@ -6,30 +6,17 @@
  * colour. Computed at a fraction of the panel's resolution that fits the
  * frame's time budget, then scaled up.
  */
-import type { Canvas, CanvasApi, Graphics } from '@kiosko/sdk';
+import type { CanvasApi, Graphics } from '@kiosko/sdk';
+import { Raster } from './raster.ts';
 import { SIZE, type Palette } from './palette.ts';
 import { type Rng } from './rng.ts';
 
-/**
- * How it can compute a frame, from cheapest to finest: at a fraction `f` of
- * the panel's resolution, and every row (`k` = 1) or every other row in
- * turn (`k` = 2, interlaced: the figure moves little from one frame to the
- * next, so the older rows hardly show).
- */
-export const LEVELS: { f: number; k: number }[] = [
-  { f: 0.25, k: 1 }, { f: 0.33, k: 1 }, { f: 0.4, k: 1 }, { f: 0.5, k: 2 }, { f: 0.5, k: 1 },
-  { f: 0.66, k: 2 }, { f: 0.66, k: 1 }, { f: 0.8, k: 2 }, { f: 1, k: 2 }, { f: 1, k: 1 },
-];
 const MAX_ITER = 110;
 const BAIL = 64;
 
-type Surface = { canvas: Canvas; image: ReturnType<Graphics['createImageData']>; w: number; h: number };
-
 export class Julia {
-  /** Index into LEVELS currently in use. */
-  level = 2;
-  /** Frames drawn, for the interlacing. */
-  private frame = 0;
+  /** The frame loop: resolution fitted to the budget. */
+  readonly raster: Raster;
   /** Phase of the walk (0–1) where this piece starts, and its sense. */
   readonly phase: number;
   readonly sense: number;
@@ -37,21 +24,17 @@ export class Julia {
   readonly reach: number;
   /** Colour cycles across the escape bands. */
   readonly bands: number;
-  private surfaces = new Map<number, Surface>();
-  /** Last frame's cost, per computed pixel, in ms. */
-  private perPixel = 0;
   /** The view along the loop: angle and size of the set, sampled and smoothed. */
   private views: Float64Array;
 
   readonly width: number;
   readonly height: number;
   readonly palette: Palette;
-  private canvas: CanvasApi;
   constructor(width: number, height: number, palette: Palette, r: Rng, canvas: CanvasApi) {
     this.width = width;
     this.height = height;
     this.palette = palette;
-    this.canvas = canvas;
+    this.raster = new Raster(width, height, canvas);
     this.phase = r();
     this.sense = r() < 0.5 ? 1 : -1;
     this.reach = 0.02 + r() * 0.025;
@@ -152,18 +135,6 @@ export class Julia {
     return [a0 + (a1 - a0) * f, this.views[i * 2 + 1]! * (1 - f) + this.views[j * 2 + 1]! * f];
   }
 
-  private surface(level: number): Surface {
-    const had = this.surfaces.get(level);
-    if (had) return had;
-    const { f } = LEVELS[level]!;
-    const w = Math.max(16, Math.round(this.width * f));
-    const h = Math.max(4, Math.round(this.height * f));
-    const canvas = this.canvas.createCanvas(w, h);
-    const s: Surface = { canvas, image: canvas.getContext('2d').createImageData(w, h), w, h };
-    this.surfaces.set(level, s);
-    return s;
-  }
-
   /** Computes loop position `t` into RGBA pixels of `w`×`h` (only rows `slice`, `slice + slices`… of each half). */
   render(out: Uint8ClampedArray, w: number, h: number, t: number, slice = 0, slices = 1): void {
     const [cr, ci] = this.c(t);
@@ -250,32 +221,6 @@ export class Julia {
 
   /** Paints loop position `t` on the panel, at the resolution that fits in `ms`. */
   draw(g: Graphics, t: number, ms: number): void {
-    // Pick the level that fits the budget, by what a pixel cost last frame.
-    const cost = (l: number) => {
-      const { f, k } = LEVELS[l]!;
-      return (this.width * this.height * f * f * this.perPixel) / k;
-    };
-    const was = this.level;
-    if (this.perPixel > 0) {
-      if (cost(this.level) > ms && this.level > 0) this.level--;
-      // Only step up with room to spare, so it doesn't flicker between two.
-      else if (this.level < LEVELS.length - 1 && cost(this.level + 1) <= ms * 0.8) this.level++;
-    }
-    const s = this.surface(this.level);
-    // A level just switched to has no older rows yet: compute it whole once.
-    const k = this.level === was && this.frame > 0 ? LEVELS[this.level]!.k : 1;
-    const start = performance.now();
-    this.render(s.image.data as Uint8ClampedArray, s.w, s.h, t, this.frame % k, k);
-    const per = ((performance.now() - start) * k) / (s.w * s.h);
-    this.perPixel = this.perPixel ? this.perPixel * 0.6 + per * 0.4 : per;
-    this.frame++;
-    const sg = s.canvas.getContext('2d');
-    sg.putImageData(s.image, 0, 0);
-    if (s.w === this.width && s.h === this.height) g.drawImage(s.canvas, 0, 0);
-    else {
-      g.imageSmoothingEnabled = true;
-      g.imageSmoothingQuality = 'high';
-      g.drawImage(s.canvas, 0, 0, this.width, this.height);
-    }
+    this.raster.draw(g, ms, (out, w, h, slice, slices) => this.render(out, w, h, t, slice, slices));
   }
 }

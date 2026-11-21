@@ -4,10 +4,14 @@
  * time, so `prepare` stays short and the picture comes up like a photo in
  * the developer, from faint dust to glowing filaments.
  */
-import { defineInterlude, definePlugin, t } from '@kiosko/sdk';
+import { defineInterlude, definePlugin, t, type Graphics, type InterludePlayer } from '@kiosko/sdk';
+import type { Density } from './density.ts';
 import { chooseGenome, Flame } from './flame.ts';
-import { Julia, LEVELS } from './julia.ts';
-import { themePalette } from './palette.ts';
+import { Coral } from './coral.ts';
+import { Ferns, plantFerns, type Fern } from './ferns.ts';
+import { Julia } from './julia.ts';
+import { Mandelbrot } from './mandelbrot.ts';
+import { themePalette, type Palette } from './palette.ts';
 import { hashSeed, rng } from './rng.ts';
 
 /** Frames per second they are made for; a screen shows at most its own `maxFps`. */
@@ -46,6 +50,23 @@ export class Budget {
     return this.ms;
   }
 }
+
+/**
+ * Time since the first frame, by the wall clock: a screen that plays slower
+ * than `FPS` still takes the time asked (to develop, to loop). Never less
+ * than the frames shown at `FPS`, so frames drawn faster than that (a test,
+ * a preview) still move it along.
+ */
+export class Clock {
+  private t0 = -1;
+  elapsed(i: number, at = now()): number {
+    if (this.t0 < 0) this.t0 = at;
+    return Math.max(at - this.t0, (i * 1000) / FPS);
+  }
+}
+
+/** The budget for a `cpu` option (a share of a frame at `FPS`, in %). */
+export const budgetFor = (cpu: number) => new Budget(((1000 / FPS) * Math.min(80, Math.max(5, cpu))) / 100);
 
 const cpuOption = t.integer({
   default: 40,
@@ -96,50 +117,82 @@ export const flame = defineInterlude({
     const genome = chooseGenome(seed, width, height);
     const palette = themePalette(ctx.theme, rng(seed ^ 0x2545f491));
     const art = new Flame(genome, width, height, seed);
-    const image = ctx.canvas.createCanvas(1, 1).getContext('2d').createImageData(width, height);
     ctx.log(`flame: ${genome.label} (chosen in ${Math.round(now() - t0)} ms)`);
-    const reveal = Math.max(1, Math.round((Math.max(1000, ctx.options.revealMs) / 1000) * FPS));
-    const budget = new Budget(((1000 / FPS) * Math.min(80, Math.max(5, ctx.options.cpu))) / 100);
-    // Points per pixel past which more add nothing to see: then it only drifts.
-    const enough = width * height * 600;
-    // Painting the histogram (tone-mapping every pixel) can cost as much as
-    // the budget on a modest machine: then each frame paints only every
-    // `slices`-th row, in turn, so the cost is spread evenly and the rest of
-    // each frame still goes to adding points.
-    let rowMs = 0;
-    let slices = 1;
-    let spent = 0;
-    return {
-      frames: MAX_FRAMES,
-      draw(g, i) {
-        const start = now();
-        const ms = budget.next(start);
-        if (art.plotted < enough) {
-          const spend = Math.max(2, ms - rowMs / slices);
-          do art.iterate(8_000);
-          while (now() - start < spend);
-        }
-        const p0 = now();
-        if (i < 8 || i % 6 === 0) art.measure(palette.light ? 0.985 : 0.96);
-        paint(art, image.data, palette, i, reveal, i % slices, slices);
-        const cost = (now() - p0) * slices;
-        rowMs = rowMs ? rowMs * 0.8 + cost * 0.2 : cost;
-        // Painting at most half the budget per frame.
-        slices = Math.min(4, Math.max(1, Math.ceil(rowMs / (ms * 0.5))));
-        g.putImageData(image, 0, 0);
-        spent += now() - start;
-        if (i === reveal) ctx.log(`flame: developed, ${(art.steps / 1e6).toFixed(1)} M points, ${(spent / (i + 1)).toFixed(1)} ms a frame (painting ${rowMs.toFixed(0)} ms, in ${slices} slices)`);
-      },
-    };
+    return developing({
+      art,
+      palette,
+      budget: budgetFor(ctx.options.cpu),
+      revealMs: Math.max(1000, ctx.options.revealMs),
+      // Points per pixel past which more add nothing to see: then it only drifts.
+      enough: () => art.plotted >= width * height * 600,
+      add: () => art.iterate(8_000),
+      log: (ms, slices) => ctx.log(`flame: developed, ${(art.steps / 1e6).toFixed(1)} M points, ${ms.toFixed(1)} ms a frame (painting in ${slices} slices)`),
+    });
   },
 });
 
-/** Frame `i` of the developing: exposure rising like a print in the tray, then a slow colour drift. */
-export function paint(art: Flame, out: Uint8ClampedArray, palette: ReturnType<typeof themePalette>, i: number, reveal: number, slice = 0, slices = 1): void {
-  const p = Math.min(1, i / reveal);
+/**
+ * Plays a density picture that develops: each frame adds points (`add`,
+ * repeatedly) for its share of the budget and paints the histogram.
+ * Painting (tone-mapping every pixel) can cost as much as the budget on a
+ * modest machine: then each frame paints only every `slices`-th row, in
+ * turn, so the cost is spread evenly and the rest of each frame still goes
+ * to adding points.
+ */
+export function developing(o: {
+  art: Density;
+  palette: Palette;
+  budget: Budget;
+  revealMs: number;
+  enough: () => boolean;
+  add: (t: number) => void;
+  log: (msPerFrame: number, slices: number) => void;
+}): InterludePlayer {
+  const { art, palette, budget, revealMs } = o;
+  const clock = new Clock();
+  let image: ReturnType<Graphics['createImageData']> | null = null;
+  let rowMs = 0;
+  let slices = 1;
+  let spent = 0;
+  let developed = false;
+  return {
+    frames: MAX_FRAMES,
+    draw(g, i) {
+      const start = now();
+      const ms = budget.next(start);
+      const t = clock.elapsed(i, start);
+      image ??= g.createImageData(art.width, art.height);
+      if (!o.enough()) {
+        const spend = Math.max(2, ms - rowMs / slices);
+        do o.add(t);
+        while (now() - start < spend);
+      }
+      const p0 = now();
+      if (i < 8 || i % 6 === 0) art.measure(palette.light ? 0.985 : 0.96);
+      paint(art, image.data as Uint8ClampedArray, palette, t / revealMs, (t - revealMs) / 1000, i % slices, slices);
+      const cost = (now() - p0) * slices;
+      rowMs = rowMs ? rowMs * 0.8 + cost * 0.2 : cost;
+      // Painting at most half the budget per frame.
+      slices = Math.min(4, Math.max(1, Math.ceil(rowMs / (ms * 0.5))));
+      g.putImageData(image, 0, 0);
+      spent += now() - start;
+      if (!developed && t >= revealMs) {
+        developed = true;
+        o.log(spent / (i + 1), slices);
+      }
+    },
+  };
+}
+
+/**
+ * The developing at progress `p` (0–1, then it stays developed): exposure
+ * rising like a print in the tray; `after` seconds past it, a slow colour drift.
+ */
+export function paint(art: Density, out: Uint8ClampedArray, palette: Palette, p0: number, after: number, slice = 0, slices = 1): void {
+  const p = Math.min(1, Math.max(0, p0));
   const e = p * p * (3 - 2 * p);
   const exposure = Math.pow(10, -2.5 * (1 - e));
-  const shift = i > reveal ? ((i - reveal) / (FPS * 240)) % 1 : 0;
+  const shift = after > 0 ? (after / 240) % 1 : 0;
   art.paint(out, palette, exposure, { shift, fade: 0.2 + 0.8 * e, slice, slices });
 }
 
@@ -173,18 +226,180 @@ export const julia = defineInterlude({
     const { width, height } = ctx;
     const seed = hashSeed(ctx.seed, 'julia');
     const palette = themePalette(ctx.theme, rng(seed ^ 0x2545f491));
-    const loop = Math.max(FPS * 2, Math.round((Math.max(2000, ctx.options.loopMs) / 1000) * FPS));
+    const loopMs = Math.max(2000, ctx.options.loopMs);
     const art = new Julia(width, height, palette, rng(seed), ctx.canvas);
-    const budget = new Budget(((1000 / FPS) * Math.min(80, Math.max(5, ctx.options.cpu))) / 100);
+    const budget = budgetFor(ctx.options.cpu);
+    const clock = new Clock();
     ctx.log(`julia: ${art.describe()}`);
     let spent = 0;
     return {
       frames: MAX_FRAMES,
       draw(g, i) {
         const start = now();
-        art.draw(g, (i % loop) / loop, budget.next(start));
+        art.draw(g, (clock.elapsed(i, start) % loopMs) / loopMs, budget.next(start));
         spent += now() - start;
-        if (i === FPS * 10) ctx.log(`julia: ${(spent / (i + 1)).toFixed(1)} ms a frame, at ${Math.round(LEVELS[art.level]!.f * 100)} % of the panel's resolution${LEVELS[art.level]!.k > 1 ? ', interlaced' : ''}`);
+        if (i === FPS * 10) ctx.log(`julia: ${(spent / (i + 1)).toFixed(1)} ms a frame, at ${art.raster.describe()}`);
+      },
+    };
+  },
+});
+
+const growLabel = { en: 'Growing time', es: 'Tiempo de crecimiento', de: 'Wachstumszeit', 'zh-Hans': '生长时间', 'zh-Hant': '生長時間' };
+
+export const ferns = defineInterlude({
+  id: 'ferns',
+  name: { en: 'Fern meadow', es: 'Prado de helechos', de: 'Farnwiese', 'zh-Hans': '蕨类草地', 'zh-Hant': '蕨類草地' },
+  description: {
+    en: 'A row of Barnsley ferns growing along the bar, each with its own height, lean and curl, drawn point by point in the theme’s colours.',
+    es: 'Una hilera de helechos de Barnsley que crecen a lo largo de la barra, cada uno con su altura, inclinación y rizo, dibujados punto a punto con los colores del tema.',
+    de: 'Eine Reihe Barnsley-Farne, die entlang der Leiste wachsen, jeder mit eigener Höhe, Neigung und Krümmung, Punkt für Punkt in den Farben des Themas gezeichnet.',
+    'zh-Hans': '一排巴恩斯利蕨沿着长条屏生长，每株高度、倾斜和卷曲各不相同，用主题颜色逐点绘出。',
+    'zh-Hant': '一排巴恩斯利蕨沿著長條屏生長，每株高度、傾斜和捲曲各不相同，用主題顏色逐點繪出。',
+  },
+  icon: 'leaf',
+  fps: FPS,
+  options: t.object({
+    growMs: t.duration({
+      default: 20_000,
+      label: growLabel,
+      help: {
+        en: 'How long the ferns take to grow to their full height. Then they keep filling in until the interlude ends.',
+        es: 'Cuánto tardan los helechos en alcanzar su altura. Después siguen rellenándose hasta que acaba el interludio.',
+        de: 'Wie lange die Farne brauchen, um ihre volle Höhe zu erreichen. Danach werden sie weiter dichter, bis das Zwischenspiel endet.',
+        'zh-Hans': '蕨类长到完整高度所需的时间。之后继续变得茂密，直到插曲结束。',
+        'zh-Hant': '蕨類長到完整高度所需的時間。之後繼續變得茂密，直到插曲結束。',
+      },
+    }),
+    cpu: cpuOption,
+  }),
+  async prepare(ctx) {
+    const { width, height } = ctx;
+    const seed = hashSeed(ctx.seed, 'ferns');
+    const r = rng(seed);
+    const palette = themePalette(ctx.theme, rng(seed ^ 0x2545f491));
+    const art = new Ferns(plantFerns(r, width, height), width, height, r);
+    const growMs = Math.max(1000, ctx.options.growMs);
+    // Each fern grows over 55 % of the time, from its own start on.
+    const grown = (at: number) => (f: Fern) => {
+      const p = Math.min(1, Math.max(0, (at / growMs - f.start) / 0.55));
+      return 1 - (1 - p) * (1 - p);
+    };
+    ctx.log(`ferns: ${art.ferns.length} ferns`);
+    return developing({
+      art,
+      palette,
+      budget: budgetFor(ctx.options.cpu),
+      // Exposure comes up a little ahead of the growing, so new fronds show at once.
+      revealMs: growMs * 0.6,
+      enough: () => art.steps >= width * height * 300,
+      add: (at) => art.iterate(8_000, grown(at)),
+      log: (ms, slices) => ctx.log(`ferns: ${(art.steps / 1e6).toFixed(1)} M points, ${ms.toFixed(1)} ms a frame (painting in ${slices} slices)`),
+    });
+  },
+});
+
+export const mandelbrot = defineInterlude({
+  id: 'mandelbrot',
+  name: { en: 'Mandelbrot dive', es: 'Inmersión en Mandelbrot', de: 'Mandelbrot-Tauchgang', 'zh-Hans': '曼德博深潜', 'zh-Hant': '曼德博深潛' },
+  description: {
+    en: 'A slow zoom into the Mandelbrot set, towards seahorse valley or another famous spot on its edge, turning as it goes, in the theme’s colours.',
+    es: 'Un zoom lento en el conjunto de Mandelbrot, hacia el valle de los caballitos de mar u otro rincón famoso de su borde, girando mientras avanza, con los colores del tema.',
+    de: 'Ein langsamer Zoom in die Mandelbrot-Menge, ins Seepferdchental oder an eine andere berühmte Stelle ihres Randes, sich dabei drehend, in den Farben des Themas.',
+    'zh-Hans': '缓缓放大曼德博集合，驶向海马谷或其边缘的其他著名位置，边前进边旋转，使用主题的颜色。',
+    'zh-Hant': '緩緩放大曼德博集合，駛向海馬谷或其邊緣的其他著名位置，邊前進邊旋轉，使用主題的顏色。',
+  },
+  icon: 'zoom-in',
+  fps: FPS,
+  options: t.object({
+    zoomMs: t.duration({
+      default: 40_000,
+      label: { en: 'Dive time', es: 'Duración de la inmersión', de: 'Tauchdauer', 'zh-Hans': '深潜时长', 'zh-Hant': '深潛時長' },
+      help: {
+        en: 'How long it takes to go from the whole set to the deepest point (about a million times closer). Then it stays there, its colours drifting.',
+        es: 'Cuánto tarda en ir del conjunto entero al punto más hondo (como un millón de veces más cerca). Después se queda ahí, con los colores derivando.',
+        de: 'Wie lange es von der ganzen Menge bis zum tiefsten Punkt dauert (etwa millionenfach näher). Danach bleibt es dort, die Farben wandern.',
+        'zh-Hans': '从整个集合放大到最深处（约一百万倍）所需的时间。之后停在那里，颜色缓慢流动。',
+        'zh-Hant': '從整個集合放大到最深處（約一百萬倍）所需的時間。之後停在那裡，顏色緩慢流動。',
+      },
+    }),
+    cpu: cpuOption,
+  }),
+  async prepare(ctx) {
+    const { width, height } = ctx;
+    const seed = hashSeed(ctx.seed, 'mandelbrot');
+    const palette = themePalette(ctx.theme, rng(seed ^ 0x2545f491));
+    const art = new Mandelbrot(width, height, palette, rng(seed), ctx.canvas);
+    const zoomMs = Math.max(2000, ctx.options.zoomMs);
+    const budget = budgetFor(ctx.options.cpu);
+    const clock = new Clock();
+    ctx.log(`mandelbrot: towards ${art.target.name}`);
+    let spent = 0;
+    let shown = 0;
+    return {
+      frames: MAX_FRAMES,
+      draw(g, i) {
+        const start = now();
+        const at = clock.elapsed(i, start);
+        art.draw(g, at / zoomMs, budget.next(start), Math.max(0, at - zoomMs) / 240_000);
+        spent += now() - start;
+        shown += art.recomputed;
+        if (i === FPS * 10) ctx.log(`mandelbrot: ${(spent / (i + 1)).toFixed(1)} ms a frame, ${Math.round((shown / (i + 1) / (art.w * art.h)) * 100)} % of its pixels recomputed each frame`);
+      },
+    };
+  },
+});
+
+export const coral = defineInterlude({
+  id: 'coral',
+  name: { en: 'Growing coral', es: 'Coral que crece', de: 'Wachsende Koralle', 'zh-Hans': '生长的珊瑚', 'zh-Hant': '生長的珊瑚' },
+  description: {
+    en: 'Coral branching up from the bottom of the bar, or frost hanging from the top, grown particle by particle (diffusion-limited aggregation), in the theme’s colours.',
+    es: 'Coral que se ramifica desde el borde inferior de la barra, o escarcha que cuelga del superior, creciendo partícula a partícula (agregación limitada por difusión), con los colores del tema.',
+    de: 'Koralle, die vom unteren Rand der Leiste aufwärts verzweigt, oder Raureif, der vom oberen herabhängt, Teilchen für Teilchen gewachsen (diffusionsbegrenzte Aggregation), in den Farben des Themas.',
+    'zh-Hans': '珊瑚从长条屏底部向上分枝，或霜花从顶部垂下，逐粒生长（扩散限制凝聚），使用主题的颜色。',
+    'zh-Hant': '珊瑚從長條屏底部向上分枝，或霜花從頂部垂下，逐粒生長（擴散限制凝聚），使用主題的顏色。',
+  },
+  icon: 'sprout',
+  fps: FPS,
+  options: t.object({
+    growMs: t.duration({
+      default: 25_000,
+      label: growLabel,
+      help: {
+        en: 'How long it takes to grow to its full size. On a slow machine it may grow slower than that.',
+        es: 'Cuánto tarda en alcanzar su tamaño completo. En una máquina lenta puede crecer más despacio.',
+        de: 'Wie lange es dauert, bis es seine volle Größe erreicht. Auf einem langsamen Rechner kann es langsamer wachsen.',
+        'zh-Hans': '长到完整大小所需的时间。在较慢的机器上可能长得更慢。',
+        'zh-Hant': '長到完整大小所需的時間。在較慢的機器上可能長得更慢。',
+      },
+    }),
+    cpu: cpuOption,
+  }),
+  async prepare(ctx) {
+    const { width, height } = ctx;
+    const seed = hashSeed(ctx.seed, 'coral');
+    const palette = themePalette(ctx.theme, rng(seed ^ 0x2545f491));
+    const art = new Coral(width, height, palette, rng(seed), ctx.canvas);
+    const growMs = Math.max(1000, ctx.options.growMs);
+    const budget = budgetFor(ctx.options.cpu);
+    const clock = new Clock();
+    ctx.log(`coral: ${art.hanging ? 'hanging' : 'growing up'}`);
+    let spent = 0;
+    let full = false;
+    return {
+      frames: MAX_FRAMES,
+      draw(g, i) {
+        const start = now();
+        const ms = budget.next(start);
+        const p = Math.min(1, clock.elapsed(i, start) / growMs);
+        // Paced by the particles it usually takes; if it needs more, it grows on.
+        art.grow(p < 1 ? Math.ceil(art.expected * p) : art.cap, ms);
+        art.draw(g);
+        spent += now() - start;
+        if (!full && art.grown) {
+          full = true;
+          ctx.log(`coral: grown, ${art.count} particles, ${(art.steps / 1e6).toFixed(1)} M steps, ${(spent / (i + 1)).toFixed(1)} ms a frame`);
+        }
       },
     };
   },
@@ -193,13 +408,13 @@ export const julia = defineInterlude({
 export default definePlugin({
   id: 'fractals',
   name: { en: 'Fractals', es: 'Fractales', de: 'Fraktale', 'zh-Hans': '分形', 'zh-Hant': '碎形' },
-  version: '0.1.0',
+  version: '0.2.0',
   description: {
-    en: 'Generative fractal interludes: a fractal flame that develops like a photo, and a Julia set that morphs, in your theme’s colours.',
-    es: 'Interludios de fractales generativos: una llama fractal que se revela como una foto y un conjunto de Julia que se transforma, con los colores de tu tema.',
-    de: 'Generative Fraktal-Zwischenspiele: eine fraktale Flamme, die sich wie ein Foto entwickelt, und eine sich verwandelnde Julia-Menge, in den Farben deines Themas.',
-    'zh-Hans': '生成式分形插曲：像照片显影一样浮现的分形火焰，以及不断变幻的朱利亚集，使用你的主题颜色。',
-    'zh-Hant': '生成式碎形插曲：像照片顯影一樣浮現的碎形火焰，以及不斷變幻的朱利亞集，使用你的主題顏色。',
+    en: 'Generative fractal interludes in your theme’s colours: a fractal flame that develops like a photo, a morphing Julia set, a dive into the Mandelbrot set, a meadow of Barnsley ferns and growing coral.',
+    es: 'Interludios de fractales generativos con los colores de tu tema: una llama fractal que se revela como una foto, un conjunto de Julia que se transforma, una inmersión en el conjunto de Mandelbrot, un prado de helechos de Barnsley y coral que crece.',
+    de: 'Generative Fraktal-Zwischenspiele in den Farben deines Themas: eine fraktale Flamme, die sich wie ein Foto entwickelt, eine sich verwandelnde Julia-Menge, ein Tauchgang in die Mandelbrot-Menge, eine Wiese aus Barnsley-Farnen und wachsende Korallen.',
+    'zh-Hans': '使用你的主题颜色的生成式分形插曲：像照片显影一样浮现的分形火焰、变幻的朱利亚集、深入曼德博集合的旅程、巴恩斯利蕨草地和生长的珊瑚。',
+    'zh-Hant': '使用你的主題顏色的生成式碎形插曲：像照片顯影一樣浮現的碎形火焰、變幻的朱利亞集、深入曼德博集合的旅程、巴恩斯利蕨草地和生長的珊瑚。',
   },
   author: 'Loksly',
   license: 'MIT',
@@ -208,5 +423,5 @@ export default definePlugin({
   sdk: '^0.2.0',
   languages: ['en', 'es', 'de', 'zh-Hant', 'zh-Hans'],
   permissions: {},
-  interludes: [flame, julia],
+  interludes: [flame, julia, mandelbrot, ferns, coral],
 });
